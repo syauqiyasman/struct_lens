@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #101216;
+  color: #d7dbe2;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* CAD crosshair cursor inside the 3D viewport */
+.cad-viewport canvas {
+  cursor: crosshair;
+}
+
+/* thin scrollbars for panels */
+.cad-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.cad-scroll::-webkit-scrollbar-thumb {
+  background: #2a2f3a;
+  border-radius: 4px;
+}
+.cad-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
