@@ -6,7 +6,7 @@ import { NAMED_VIEWS, viewportApi } from "../lib/viewportApi";
 const TYPES: DamageType[] = ["crack", "spalling", "corrosion", "surface_damage"];
 
 export default function CommandBar() {
-  const { setPage, inspections, selectInspection, setSelectedId, filters, setFilters, notify, visibleDamages } = useStore();
+  const { setPage, inspections, selectInspection, setSelectedId, filters, setFilters, notify, visibleDamages, scale, setCalibration, calibrated } = useStore();
   const [value, setValue] = useState("");
   const [last, setLast] = useState("_Type a command (HELP for list)");
 
@@ -22,7 +22,7 @@ export default function CommandBar() {
     const arg = parts.slice(1).join(" ");
     switch (cmd) {
       case "help":
-        setLast("OPEN <id> · SELECT <D-xxx|none> · ISOLATE <type|all> · LAYER <name> <on|off> · MEASURE <on|off> · CLIP <x|y|z value|off> · VIEW <iso|top|front|right|left> · ZOOM EXTENTS · SNAPSHOT · GOTO <page>");
+        setLast("OPEN <id> · SELECT <D-xxx|none> · ISOLATE <type|all> · LAYER <name> <on|off> · MEASURE <on|off> · CALIBRATE <factor|off> · CLIP <x|y|z value|off> · VIEW <iso|top|front|right|left> · ZOOM EXTENTS · SNAPSHOT · GOTO <page>");
         break;
       case "goto":
         if (["inspections", "viewer", "temporal", "report"].includes(arg)) {
@@ -80,6 +80,23 @@ export default function CommandBar() {
         setFilters({ measure: arg.toLowerCase() !== "off" });
         say(arg.toLowerCase() === "off" ? "Measure off" : "Measure on — click two cloud points");
         break;
+      case "calibrate": {
+        const a = arg.toLowerCase();
+        if (a === "off") {
+          setCalibration(null);
+          say("Calibration cleared");
+        } else if (a && !Number.isNaN(Number(a)) && Number(a) > 0) {
+          setCalibration({ method: "manual", scale: Number(a), updatedAt: Date.now(), validation: null });
+          say(`Scale set — ${Number(a).toFixed(4)} m/unit`);
+        } else if (!a) {
+          setPage("viewer");
+          setFilters({ measure: true });
+          say(calibrated ? `Current scale ${scale.toFixed(4)} m/unit — click 2 cloud points to re-measure` : "Pick 2 cloud points, then apply a reference length in the panel");
+        } else {
+          setLast('_Usage: CALIBRATE <factor|off>, or CALIBRATE to pick 2 points');
+        }
+        break;
+      }
       case "clip": {
         const [axis, val] = arg.toLowerCase().split(/\s+/);
         if (axis === "off" || !axis) {

@@ -2,8 +2,9 @@ import { useStore } from "../store";
 import { TYPE_COLORS } from "../types";
 
 export default function ReportPage() {
-  const { active } = useStore();
+  const { active, calibration, calibrated, scale } = useStore();
   const m = active.meta;
+  const lenUnit = calibrated ? "m" : "u";
   const dist = (Object.keys(TYPE_COLORS) as (keyof typeof TYPE_COLORS)[]).map((t) => ({
     t,
     n: active.damages.filter((d) => d.type === t).length,
@@ -14,6 +15,14 @@ export default function ReportPage() {
       inspection_id: m.inspectionId,
       infrastructure_id: m.infrastructureId,
       inspection_date: m.inspectionDate,
+      calibration: calibrated && calibration
+        ? {
+            method: calibration.method,
+            scale_m_per_unit: calibration.scale,
+            reference: calibration.method === "reference" ? { real_m: calibration.refReal, measured_unit: calibration.refVggt } : null,
+            validation_error_pct: calibration.validation?.errorPct ?? null,
+          }
+        : { method: "uncalibrated", scale_m_per_unit: null },
       total_damage: active.damages.length,
       damage_distribution: Object.fromEntries(dist.map((d) => [d.t, d.n])),
       damages: active.damages.map((d) => ({
@@ -21,7 +30,7 @@ export default function ReportPage() {
         type: d.type,
         confidence: d.confidence,
         location: d.location,
-        size: { length: d.length },
+        size: { length: Number((d.length * scale).toFixed(4)), unit: lenUnit },
         inspection_date: d.inspectionDate,
         source_images: d.sourceImages,
       })),
@@ -51,7 +60,7 @@ export default function ReportPage() {
         {[
           ["TOTAL DAMAGE", String(active.damages.length)],
           ["AVG CONFIDENCE", active.damages.length ? `${((active.damages.reduce((a, d) => a + d.confidence, 0) / active.damages.length) * 100).toFixed(0)}%` : "—"],
-          ["MAX LENGTH", active.damages.length ? `${Math.max(...active.damages.map((d) => d.length)).toFixed(2)} m` : "—"],
+          ["MAX LENGTH", active.damages.length ? `${(Math.max(...active.damages.map((d) => d.length)) * scale).toFixed(2)} ${lenUnit}` : "—"],
           ["COVERAGE", `${m.coverage}%`],
         ].map(([l, v]) => (
           <div key={l} className="bg-cad-panel p-3">
@@ -59,6 +68,24 @@ export default function ReportPage() {
             <div className="text-xl text-white">{v}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-3 flex items-center gap-3 border border-cad-border bg-cad-panel px-3 py-2 font-mono text-[11px]">
+        <span className={`h-2 w-2 rounded-full ${calibrated ? "bg-emerald-500" : "bg-amber-500"}`} />
+        <span className="uppercase tracking-wider text-zinc-400">Scale calibration</span>
+        {calibrated && calibration ? (
+          <>
+            <span className="text-cad-accent">{calibration.scale.toFixed(4)} m/unit</span>
+            <span className="text-zinc-500">method {calibration.method}</span>
+            {calibration.validation && (
+              <span className={calibration.validation.errorPct <= 5 ? "text-emerald-400" : "text-red-400"}>
+                validation {calibration.validation.errorPct.toFixed(2)}%
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-amber-400">uncalibrated — lengths in relative units</span>
+        )}
       </div>
 
       <div className="mb-3 border border-cad-border bg-cad-panel">
@@ -94,7 +121,7 @@ export default function ReportPage() {
                 <td className="px-3 py-1.5">{d.location.x.toFixed(2)}</td>
                 <td className="px-3 py-1.5">{d.location.y.toFixed(2)}</td>
                 <td className="px-3 py-1.5">{d.location.z.toFixed(2)}</td>
-                <td className="px-3 py-1.5">{d.length.toFixed(2)} m</td>
+                <td className="px-3 py-1.5">{(d.length * scale).toFixed(calibrated ? 3 : 2)} {lenUnit}</td>
                 <td className="px-3 py-1.5 text-sky-300">{d.sourceImages.join(", ")}</td>
               </tr>
             ))}

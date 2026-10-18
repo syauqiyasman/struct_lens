@@ -3,16 +3,17 @@ import { useStore } from "../store";
 import { TYPE_COLORS } from "../types";
 
 export default function TemporalPage() {
-  const { active } = useStore();
+  const { active, calibrated, scale } = useStore();
   const rows = active.temporal.map((t) => ({
     id: t.currId,
     type: t.type,
-    prev: t.lenPrev ?? 0,
-    curr: t.lenCurr,
-    growth: t.growth ?? 0,
+    prev: (t.lenPrev ?? 0) * scale,
+    curr: t.lenCurr * scale,
+    growth: (t.growth ?? 0) * scale,
     status: t.status,
   }));
   const persisted = rows.filter((r) => r.status === "persisted");
+  const unit = calibrated ? "m" : "u";
 
   return (
     <div className="cad-scroll h-full overflow-y-auto p-5">
@@ -27,7 +28,7 @@ export default function TemporalPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           <div className="border border-cad-border bg-cad-panel p-3">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Length t-1 → t (m, relative VGGT scale)</div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Length t-1 → t ({unit}{calibrated ? "" : ", relative VGGT scale"})</div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={rows} margin={{ top: 5, right: 10, bottom: 0, left: -15 }}>
                 <CartesianGrid stroke="#232833" />
@@ -45,7 +46,7 @@ export default function TemporalPage() {
             </ResponsiveContainer>
           </div>
           <div className="border border-cad-border bg-cad-panel p-3">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Growth Δ per damage (m)</div>
+            <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Growth Δ per damage ({unit})</div>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={persisted} margin={{ top: 5, right: 10, bottom: 0, left: -15 }}>
                 <CartesianGrid stroke="#232833" />

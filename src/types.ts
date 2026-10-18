@@ -18,6 +18,23 @@ export interface DamageRecord {
   num3dPoints?: number;
 }
 
+export interface CalibrationValidation {
+  real: number;
+  measuredVggt: number;
+  errorPct: number;
+}
+
+export interface Calibration {
+  method: "reference" | "manual";
+  scale: number;
+  refVggt?: number;
+  refReal?: number;
+  updatedAt: number;
+  validation?: CalibrationValidation | null;
+}
+
+export type ReviewStatus = "pending" | "confirmed" | "rejected";
+
 export interface InspectionMeta {
   inspectionId: string;
   infrastructureId: string;

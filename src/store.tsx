@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { DamageType, InspectionDataset } from "./types";
+import type { Calibration, DamageType, InspectionDataset, ReviewStatus } from "./types";
 import { DEMO_INSPECTIONS } from "./data/demo";
 import { buildUploadDataset } from "./lib/reportAdapter";
 
@@ -36,6 +36,14 @@ interface Store {
   uploadNotice: string | null;
   selectedId: string | null;
   setSelectedId: (id: string | null) => void;
+  calibrations: Record<string, Calibration>;
+  setCalibration: (cal: Calibration | null) => void;
+  calibration: Calibration | null;
+  calibrated: boolean;
+  scale: number;
+  reviews: Record<string, Record<string, ReviewStatus>>;
+  setReview: (damageId: string, status: ReviewStatus) => void;
+  reviewOf: (damageId: string) => ReviewStatus;
   filters: Filters;
   setFilters: (f: Partial<Filters>) => void;
   visibleDamages: InspectionDataset["damages"];
@@ -45,16 +53,18 @@ interface Store {
 
 const LS_KEY = "iv3d-v1";
 
-function loadPersisted(): { page: Page; activeKey: string; filters: Filters } | null {
+function loadPersisted(): { page: Page; activeKey: string; filters: Filters; calibrations: Record<string, Calibration>; reviews: Record<string, Record<string, ReviewStatus>> } | null {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return null;
-    const p = JSON.parse(raw) as Partial<{ page: Page; activeKey: string; filters: Filters }>;
+    const p = JSON.parse(raw) as Partial<{ page: Page; activeKey: string; filters: Filters; calibrations: Record<string, Calibration>; reviews: Record<string, Record<string, ReviewStatus>> }>;
     if (!p || typeof p !== "object") return null;
     return {
       page: ["inspections", "viewer", "temporal", "report"].includes(p.page as string) ? (p.page as Page) : "inspections",
       activeKey: typeof p.activeKey === "string" ? p.activeKey : DEMO_INSPECTIONS[0].key,
       filters: { ...defaultFilters(), ...(p.filters ?? {}), types: { ...defaultFilters().types, ...(p.filters?.types ?? {}) } },
+      calibrations: p.calibrations && typeof p.calibrations === "object" ? p.calibrations : {},
+      reviews: p.reviews && typeof p.reviews === "object" ? p.reviews : {},
     };
   } catch {
     return null;
@@ -81,6 +91,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [inspections, setInspections] = useState<InspectionDataset[]>(DEMO_INSPECTIONS);
   const [activeKey, setActiveKey] = useState(persisted?.activeKey ?? DEMO_INSPECTIONS[0].key);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [calibrations, setCalibrations] = useState<Record<string, Calibration>>(persisted?.calibrations ?? {});
+  const [reviews, setReviews] = useState<Record<string, Record<string, ReviewStatus>>>(persisted?.reviews ?? {});
   const [filters, setFiltersRaw] = useState<Filters>(persisted?.filters ?? defaultFilters());
   const [uploading, setUploading] = useState(false);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
@@ -95,11 +107,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ page, activeKey, filters }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ page, activeKey, filters, calibrations, reviews }));
     } catch {
       /* private mode — ignore */
     }
-  }, [page, activeKey, filters]);
+  }, [page, activeKey, filters, calibrations, reviews]);
 
   const active = useMemo(
     () => inspections.find((d) => d.key === activeKey) ?? inspections[0],
@@ -164,9 +176,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [active, filters],
   );
 
+  const setCalibration = useCallback(
+    (cal: Calibration | null) => {
+      setCalibrations((prev) => {
+        const next = { ...prev };
+        if (cal) next[activeKey] = cal;
+        else delete next[activeKey];
+        return next;
+      });
+    },
+    [activeKey],
+  );
+
+  const calibration = calibrations[activeKey] ?? null;
+  const calibrated = !!calibration && calibration.scale > 0;
+  const scale = calibrated ? (calibration as Calibration).scale : 1;
+
+  const setReview = useCallback(
+    (damageId: string, status: ReviewStatus) => {
+      setReviews((prev) => {
+        const next = { ...prev, [activeKey]: { ...(prev[activeKey] ?? {}), [damageId]: status } };
+        return next;
+      });
+    },
+    [activeKey],
+  );
+
+  const reviewOf = useCallback(
+    (damageId: string): ReviewStatus => reviews[activeKey]?.[damageId] ?? "pending",
+    [reviews, activeKey],
+  );
+
   return (
     <Ctx.Provider
-      value={{ page, setPage, inspections, active, selectInspection, addInspection, uploadDataset, uploading, uploadNotice, selectedId, setSelectedId, filters, setFilters, visibleDamages, toast, notify }}
+      value={{ page, setPage, inspections, active, selectInspection, addInspection, uploadDataset, uploading, uploadNotice, selectedId, setSelectedId, calibrations, setCalibration, calibration, calibrated, scale, reviews, setReview, reviewOf, filters, setFilters, visibleDamages, toast, notify }}
     >
       {children}
     </Ctx.Provider>

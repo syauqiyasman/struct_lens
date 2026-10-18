@@ -10,7 +10,7 @@ const TABS: { id: Page; label: string; hint: string }[] = [
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { page, setPage, active, toast } = useStore();
+  const { page, setPage, active, toast, calibrated, scale } = useStore();
   return (
     <div className="flex h-full flex-col bg-cad-bg text-[13px]">
       {/* top command bar */}
@@ -58,6 +58,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <span className="text-emerald-500">● READY</span>
         <span>PTS {active.cloud.count.toLocaleString()}</span>
         <span>DMG {active.damages.length}</span>
+        <span className={calibrated ? "text-emerald-500" : "text-zinc-600"}>{calibrated ? `CAL ${scale.toFixed(4)} m/u` : "CAL —"}</span>
         <span className="hidden sm:inline">MODEL VGGT-1B · G-DINO · SAM2.1</span>
         <span className="ml-auto hidden md:inline">LOCAL PROJECT STORE · AUTOSAVE ON</span>
       </footer>

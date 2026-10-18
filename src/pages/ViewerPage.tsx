@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import Viewer3D from "../components/Viewer3D";
 import DamagePanel from "../components/DamagePanel";
 import UploadPanel from "../components/UploadPanel";
+import CalibrationPanel from "../components/CalibrationPanel";
 import { useStore } from "../store";
 import { TYPE_COLORS } from "../types";
 import type { DamageType } from "../types";
@@ -10,7 +11,7 @@ import { NAMED_VIEWS, viewportApi } from "../lib/viewportApi";
 const TYPES = Object.keys(TYPE_COLORS) as DamageType[];
 
 export default function ViewerPage() {
-  const { active, selectedId, setSelectedId, filters, setFilters, visibleDamages, uploading, notify } = useStore();
+  const { active, selectedId, setSelectedId, filters, setFilters, visibleDamages, uploading, notify, scale, calibrated } = useStore();
   const selected = active.damages.find((d) => d.id === selectedId) ?? null;
   const [hover, setHover] = useState<{ x: number; y: number; z: number } | null>(null);
   const [measureDist, setMeasureDist] = useState<number | null>(null);
@@ -139,6 +140,9 @@ export default function ViewerPage() {
             <div className="font-mono text-[11px] text-zinc-400">{(filters.minConfidence * 100).toFixed(0)}% → {visibleDamages.length} visible</div>
           </div>
         </Section>
+        <Section title="Scale calibration">
+          <CalibrationPanel measuredVggt={measureDist} />
+        </Section>
         <Section title="Load data">
           <div className="px-3 pb-3"><UploadPanel /></div>
         </Section>
@@ -156,6 +160,8 @@ export default function ViewerPage() {
           layers={filters}
           onHover={setHover}
           onMeasure={setMeasureDist}
+          unitScale={scale}
+          unitLabel={calibrated ? "m" : "u"}
         />
         <div className="pointer-events-none absolute left-3 top-3 border border-cad-border bg-black/70 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-zinc-400">
           {active.meta.infrastructureId} · {active.meta.inspectionId}
@@ -166,7 +172,11 @@ export default function ViewerPage() {
         </div>
         <div className="pointer-events-none absolute bottom-3 right-3 border border-cad-border bg-black/70 px-2 py-1 font-mono text-[10px] text-zinc-300">
           {hover ? `X ${hover.x.toFixed(2)}  Y ${hover.y.toFixed(2)}  Z ${hover.z.toFixed(2)}` : "X —  Y —  Z —"}
-          {measureDist != null && <span className="ml-3 text-cad-accent">DIST {measureDist.toFixed(2)} m</span>}
+          {measureDist != null && (
+            <span className="ml-3 text-cad-accent">
+              DIST {(measureDist * scale).toFixed(calibrated ? 3 : 2)} {calibrated ? "m" : "u"}
+            </span>
+          )}
         </div>
         {uploading && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/70">
@@ -179,7 +189,7 @@ export default function ViewerPage() {
       {/* right properties */}
       <aside className="flex w-72 shrink-0 flex-col border-l border-cad-border bg-cad-panel">
         <div className="border-b border-cad-border px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Properties</div>
-        <div className="min-h-0 flex-1"><DamagePanel d={selected} temporal={active.temporal} /></div>
+        <div className="min-h-0 flex-1"><DamagePanel d={selected} temporal={active.temporal} scale={scale} calibrated={calibrated} /></div>
         <div className="border-t border-cad-border">
           <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-zinc-500">Damage list ({visibleDamages.length})</div>
           <div className="cad-scroll max-h-44 overflow-y-auto pb-2">
